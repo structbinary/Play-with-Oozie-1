@@ -7,7 +7,7 @@
     "uuid": "41b726d0-e4df-ad33-8c61-14ba87116318", 
     "extra": "", 
     "type": "oozie-workflow2", 
-    "description": "Oozie job to run java programs", 
+    "description": "Oozie job to run java programs-For Demo", 
     "is_history": false, 
     "parent_directory": [
       "a68783c1-6d6f-4eda-bf66-df4b54bb7563", 
