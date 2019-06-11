@@ -21,6 +21,7 @@ steps:
 - task: PythonScript@0
   inputs:
     scriptSource: 'inline'
-    script: 'import os
-      cwd = os.getcwd()'
+    script: | 
+      import os
+      cwd = os.getcwd()
 
