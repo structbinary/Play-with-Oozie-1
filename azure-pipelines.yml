@@ -26,4 +26,4 @@ steps:
 - task: PythonScript@0
   inputs:
     scriptSource: 'filePath'
-    scriptPath: '/Python_Test.py'
+    scriptPath: '/blob/master/Python_Test.py'
