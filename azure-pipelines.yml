@@ -22,3 +22,8 @@ steps:
   inputs:
     scriptSource: 'inline'
     script: 'print("Hello world")'
+
+- task: PythonScript@0
+  inputs:
+    scriptSource: 'inline'
+    script: 'print($(Pig))'
