@@ -25,7 +25,5 @@ steps:
 
 - task: PythonScript@0
   inputs:
-    scriptSource: 'inline'
-    script: 'import os
-      arr=os.listdir($(Pig))
-      print(arr)'
+    scriptSource: 'filePath'
+    scriptPath: '/Python_Test.py'
