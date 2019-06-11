@@ -21,9 +21,6 @@ steps:
 - task: PythonScript@0
   inputs:
     scriptSource: 'inline'
-    script: 'print("Hello world")'
+    script: 'import os
+      cwd = os.getcwd()'
 
-- task: PythonScript@0
-  inputs:
-    scriptSource: 'filePath'
-    scriptPath: '/blob/master/Python_Test.py'
