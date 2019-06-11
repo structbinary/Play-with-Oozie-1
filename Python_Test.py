@@ -1,4 +1,4 @@
 import os
-arr=os.listdir($(Pig))
+arr=os.listdir('/')
 print(arr)
 
