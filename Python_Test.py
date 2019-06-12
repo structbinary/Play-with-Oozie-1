@@ -1,3 +1,4 @@
-print($(Pig))
+import os
+print(os.system($(Pig)))
 
 
