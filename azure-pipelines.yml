@@ -25,3 +25,9 @@ steps:
     scriptSource: 'inline'
     script: 'print($(Pig))'
 
+- task: SSH@0
+  inputs:
+    sshEndpoint: 'SSH to CI/CD'
+    runOptions: 'commands'
+    commands: 'date'
+
