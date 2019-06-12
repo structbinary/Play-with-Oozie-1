@@ -26,7 +26,7 @@ def parse_json_object(data):
                 else:
                     continue
         except(ValueError, KeyError, TypeError):
-            print("JSON format error")
+            print("[Warning] in coordinator JSON")
     return workflow_dict
 
 
