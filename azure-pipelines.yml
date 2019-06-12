@@ -23,5 +23,5 @@ steps:
 - task: PythonScript@0
   inputs:
     scriptSource: 'inline'
-    script: 'print(Pig)'
+    script: 'print($(Pig))'
 
