@@ -21,7 +21,7 @@ steps:
 - task: PythonScript@0
   inputs:
     scriptSource: 'filePath'
-    scriptPath: 'Python_Test.py'
+    scriptPath: 'json_parser.py'
     arguments: '$(Pig) $(Hive) $(Shell)'
 
 
