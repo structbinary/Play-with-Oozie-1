@@ -52,9 +52,9 @@ def get_file_name(final_dict):
             pig_full_path =  os.getcwd()+ "/" + pig_repository_path + "/" + pig_file_name
             exists = os.path.isfile(pig_full_path)
             if exists:
-                print("The workflow of %s exist in the repository" %(key_item))
+                print("Artifact of %s exist in the repository" %(key_item))
             else:
-                print("The workflow of %s does not exist in the repository so exiting" %(key_item))
+                print("Artifact of %s does not exist in the repository so exiting" %(key_item))
                 sys.exit(1)
 
 
