@@ -41,7 +41,7 @@ def fetch_repo_path(key):
         return False
 
 ''' 
-I'll check whether the file is present on the required directory or not
+ check whether the file is present on the required directory or not
 '''
 def get_file_name(final_dict):
     key_list = final_dict.keys()
@@ -63,7 +63,7 @@ def get_full_path(file_name, path):
     return full_path
 
 ''' 
-I'll check whether the file is present on the required directory or not
+ check whether the file is present on the required directory or not
 '''
 def check_workflow_exist_or_not(final_dict, pig_path, hive_path):
     key_list = final_dict.keys()
@@ -78,9 +78,9 @@ def check_workflow_exist_or_not(final_dict, pig_path, hive_path):
             continue
         exists = os.path.isfile(path)
         if exists:
-            print("The workflow of %s exist in the repository" %(key_item))
+            print("The artifacts of %s app exist in the repository" %(key_item))
         else:
-            print("The workflow of %s does not exist in the repository so exiting" %(key_item))
+            print("The artifacts of %s app does not exist in the repository so exiting" %(key_item))
             sys.exit(1)
 
 def main():
