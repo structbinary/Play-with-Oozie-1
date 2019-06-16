@@ -7,13 +7,6 @@ trigger:
 - master
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml $(Pig) $(Hive)
-  displayName: 'Run a multi-line script'
 
 - task: PythonScript@0
   inputs:
