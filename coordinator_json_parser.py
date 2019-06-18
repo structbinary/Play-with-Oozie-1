@@ -114,7 +114,7 @@ def check_artifact_on_vcs(final_dict):
                     result[key_item]["source_path"] = full_path
                     result[key_item]["hdfs_path"] = hdfs_path
                     found = True
-					print("[INFO] Artifact: %s has been found" %(key_item))
+		    print("[INFO] Artifact: %s has been found" %(key_item))
                     continue
                 else:
                     if found:
