@@ -16,8 +16,10 @@ steps:
     echo PIG environment variable is $PIG
     echo HIVE environment variable is $HIVE
     echo Third environment variable is $SHELL
+    ls -ltrha
     whoami
     python --version
+    printenv
     
 
 - task: Bash@3
