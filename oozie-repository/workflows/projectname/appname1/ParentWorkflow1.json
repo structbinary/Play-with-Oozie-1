@@ -54,39 +54,6 @@
   }
 },
 {
-  "pk": 30, 
-  "model": "desktop.document2", 
-  "fields": {
-    "search": null, 
-    "uuid": "d78db5de-6b98-1e57-c793-6b641712763a", 
-    "extra": "", 
-    "type": "oozie-coordinator2", 
-    "description": "", 
-    "is_history": false, 
-    "parent_directory": [
-      "a68783c1-6d6f-4eda-bf66-df4b54bb7563", 
-      1, 
-      false
-    ], 
-    "is_managed": false, 
-    "last_modified": "2019-06-18T05:35:05", 
-    "version": 1, 
-    "owner": [
-      "cloudera"
-    ], 
-    "dependencies": [
-      [
-        "82eb389c-3a63-cfd4-a731-6e50fbabbf80", 
-        1, 
-        false
-      ]
-    ], 
-    "data": "{\"end_date\": {\"name\": \"end_date\", \"value\": \"2019-07-12T01:46\"}, \"variables\": [], \"isDirty\": false, \"showAdvancedFrequencyUI\": true, \"isManaged\": false, \"variablesUI\": [\"parameter\", \"input_path\", \"output_path\"], \"workflowParameters\": [], \"properties\": {\"job_xml\": \"\", \"timeout\": null, \"document\": null, \"end\": \"${end_date}\", \"description\": \"\", \"frequency_number\": 1, \"workflow\": \"82eb389c-3a63-cfd4-a731-6e50fbabbf80\", \"deployment_dir\": \"/user/hue/oozie/workspaces/hue-oozie-1560156363.7\", \"cron_frequency\": \"0 0,12 * * *\", \"frequency_unit\": \"days\", \"schema_version\": \"uri:oozie:coordinator:0.2\", \"cron_advanced\": false, \"start\": \"${start_date}\", \"parameters\": [{\"name\": \"oozie.use.system.libpath\", \"value\": true}, {\"name\": \"start_date\", \"value\": \"2019-07-11T01:46\"}, {\"name\": \"end_date\", \"value\": \"2019-07-12T01:46\"}], \"concurrency\": 0, \"timezone\": \"Asia/Calcutta\", \"credentials\": [], \"throttle\": 0, \"execution\": \"FIFO\", \"sla\": [{\"key\": \"enabled\", \"value\": false}, {\"key\": \"nominal-time\", \"value\": \"${nominal_time}\"}, {\"key\": \"should-start\", \"value\": \"\"}, {\"key\": \"should-end\", \"value\": \"${30 * MINUTES}\"}, {\"key\": \"max-duration\", \"value\": \"\"}, {\"key\": \"alert-events\", \"value\": \"\"}, {\"key\": \"alert-contact\", \"value\": \"\"}, {\"key\": \"notification-msg\", \"value\": \"\"}, {\"key\": \"upstream-apps\", \"value\": \"\"}]}, \"uuid\": \"d78db5de-6b98-1e57-c793-6b641712763a\", \"name\": \"ParentSchedule1\", \"id\": 30, \"start_date\": {\"name\": \"start_date\", \"value\": \"2019-07-11T01:46\"}}", 
-    "is_trashed": false, 
-    "name": "ParentSchedule1"
-  }
-},
-{
   "pk": 31, 
   "model": "desktop.document2", 
   "fields": {
