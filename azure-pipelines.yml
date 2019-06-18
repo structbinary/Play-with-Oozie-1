@@ -16,7 +16,6 @@ steps:
     echo PIG environment variable is $PIG
     echo HIVE environment variable is $HIVE
     echo Third environment variable is $SHELL
-    scl enable python27 bash
     whoami
     python --version
     
