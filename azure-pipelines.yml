@@ -1,17 +1,26 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+resources:
+- repo: self
 
-trigger:
-- master
+pool:
+    name: Default
 
 steps:
 
-- task: PythonScript@0
+- script: |
+    echo '##vso[task.setvariable variable=pig]$(pig)'
+    echo '##vso[task.setvariable variable=hive]$(hive)'
+    echo '##vso[task.setvariable variable=shell]$(shell)'
+    echo '##vso[task.setvariable variable=gavr]$(gavr)'
+
+
+ 
+# An environment variable called `Helix Genome Variables` has been added to all downstream steps
+- bash: |
+    echo PIG environment variable is $PIG
+    echo HIVE environment variable is $HIVE
+    echo Third environment variable is $SHELL
+
+- task: Bash@3
   inputs:
-    scriptSource: 'filePath'
-    scriptPath: 'coordinator_json_parser.py'
-    arguments: '$(Pig) $(Hive) $(Shell)'
-
-
+    targetType: 'inline'
+    script: 'python coordinator_json_parser.py build'
