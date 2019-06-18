@@ -17,6 +17,7 @@ steps:
     echo HIVE environment variable is $HIVE
     echo Third environment variable is $SHELL
     whoami
+    python --version
     
 
 - task: Bash@3
