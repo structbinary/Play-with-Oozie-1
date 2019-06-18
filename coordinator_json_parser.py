@@ -8,6 +8,7 @@ from pathlib import Path
 
 project_dir = os.environ['PROJECT_DIR']
 
+
 ''' 
 I'll parse the coordinator json and will return the hive, pig script path in dictionary
 '''
@@ -87,6 +88,7 @@ def check_artifact_on_vcs(final_dict):
     for key_item in key_list:
         if key_item == "GAVR":
             print("[INFO] Going to check nexus")
+            gavr_list = fetch_repo_path(key_item)
             check_artifact_from_nexus(gavr_list, final_dict[key_item])
         else:
             artifact = os.path.basename(final_dict[key_item])
@@ -118,7 +120,7 @@ def get_full_path(file_name, path):
     return full_path
 
 def check_artifact_from_nexus(url_list, artifact_name):
-    found_artifact = False
+    file_found = False
     found = False
     for each_nexus_url in url_list:
         print('[INFO] Going to check artifact on this url: %s' %(each_nexus_url))
@@ -128,18 +130,25 @@ def check_artifact_from_nexus(url_list, artifact_name):
                 data = requests.get(each_nexus_url)
                 if data.status_code == 200:            
                     print("[INFO] Artifact has been found on the above url")
-                    found_artifact = True
                     found = True
+                    file_found = True
+                    continue
+                else:
+                    print("[ERROR] Problem in download artifact from nexus")
+            else:
+                if found:
                     continue
                 else:
                     continue
-            else:
-                print("[ERROR] This artifact: %s does not exist in nexus" %(key_item))
-                sys.exit(1)       
         except(Exception) as e:
             print("[ERROR] Problem downloading the artifact. The error is: ")
             print(e)
             sys.exit(1)
+
+    if not file_found:
+        print("[ERROR] This artifact: %s does not exist in nexus" %(filename))
+        sys.exit(1)
+        
 
 
 ''' 
@@ -201,13 +210,6 @@ def main():
     else:
         print("[ERROR] Service which you want to do is not currently supported")
         sys.exit(1)
-    # with open(json_file_path, 'r') as json_file:
-    #     data = json.load(json_file)
-    #     final_dict = parse_json_object(data)
-    #     print("[INFO] Consolidated dict is: %s" %(final_dict))
-    #     check_artifact_on_vcs(final_dict)
-    #     nexus_artifact_url = nexus_url + "/repository/" + nexus_repository_name + "/" + nexus_group_id + "/" + nexus_artifact_id + "/" + artifact_version + "/" + jar_file_name
-        # check_artifact_from_nexus(nexus_url, nexus_repository_name, nexus_group_id, nexus_artifact_id, artifact_version, jar_file_name)
 
 if __name__ == '__main__':
     main()
