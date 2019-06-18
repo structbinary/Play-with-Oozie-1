@@ -16,6 +16,8 @@ steps:
     echo PIG environment variable is $PIG
     echo HIVE environment variable is $HIVE
     echo Third environment variable is $SHELL
+    whoami
+    
 
 - task: Bash@3
   inputs:
