@@ -5,15 +5,17 @@ import requests
 import git
 import ast
 from pathlib import Path
+from collections import defaultdict
 
 project_dir = os.environ['PROJECT_DIR']
+build_result = "build.json"
 
 
 ''' 
 I'll parse the coordinator json and will return the hive, pig script path in dictionary
 '''
 def parse_json_object(data):
-    workflow_dict = {}
+    workflow_dict = defaultdict(dict)
     for items in data:
         data_item = items["fields"]["data"]
         try:
@@ -31,7 +33,8 @@ def parse_json_object(data):
                         workflow_dict['SHELL'] = str(shell_files['value'])
                 elif item['type'] == "spark-widget":
                     print("[INFO] Spark artifact name is: %s" %(item['properties']['jars']))
-                    workflow_dict["GAVR"] = str(item['properties']['jars'])
+                    workflow_dict["GAVR"]["source_jar"] = str(item['properties']['jars'])
+                    workflow_dict["GAVR"]["hdfs_path"] = str(decoded['workflow']['properties']['deployment_dir']) + "/lib"
                 else:
                     continue
         except(ValueError, KeyError, TypeError):
@@ -79,20 +82,28 @@ def fetch_repo_path(key):
     else:
         return False
 
+def merge_two_dicts(x, y):
+    tmp_dict = x.copy()
+    tmp_dict.update(y)
+    return tmp_dict
+
 ''' 
 I'll check whether the file is present on the required directory or not
 '''
 def check_artifact_on_vcs(final_dict):
     key_list = final_dict.keys()
-    result = {}
+    result = defaultdict(dict)
     for key_item in key_list:
         if key_item == "GAVR":
             print("[INFO] Going to check nexus")
             gavr_list = fetch_repo_path(key_item)
-            check_artifact_from_nexus(gavr_list, final_dict[key_item])
+            output = check_artifact_from_nexus(gavr_list, final_dict[key_item])
+            merge_output = merge_two_dicts(result, output)
         else:
+            hdfs_path = final_dict[key_item]
+            print(hdfs_path)
             artifact = os.path.basename(final_dict[key_item])
-            repository_path_list =  fetch_repo_path(key_item)
+            repository_path_list = fetch_repo_path(key_item)
             file_found = False
             found = False
             for each_path in repository_path_list:               
@@ -100,7 +111,8 @@ def check_artifact_on_vcs(final_dict):
                 my_file = Path(full_path)
                 if my_file.is_file():
                     file_found = True
-                    result[key_item] = full_path
+                    result[key_item]["source_path"] = full_path
+                    result[key_item]["hdfs_path"] = hdfs_path
                     found = True
                     continue
                 else:
@@ -113,25 +125,28 @@ def check_artifact_on_vcs(final_dict):
             else:
                 print("[ERROR] The artifact of %s does not exist in the repository so exiting" %(key_item))
                 sys.exit(1)
-    print(result)
+    return result
 
 def get_full_path(file_name, path):
     full_path = os.getcwd()+ "/" + path + "/" + file_name
     return full_path
 
 def check_artifact_from_nexus(url_list, artifact_name):
+    result = defaultdict(dict)
     file_found = False
     found = False
     for each_nexus_url in url_list:
         print('[INFO] Going to check artifact on this url: %s' %(each_nexus_url))
         try:
             filename = each_nexus_url[each_nexus_url.rfind("/")+1:]
-            if filename == artifact_name:
+            if filename == artifact_name['source_jar']:
                 data = requests.get(each_nexus_url)
                 if data.status_code == 200:            
-                    print("[INFO] Artifact has been found on the above url")
+                    print("[INFO] Artifact has been found on the above url")    
                     found = True
                     file_found = True
+                    result["GAVR"]["hdfs_path"] = artifact_name['hdfs_path']
+                    result["GAVR"]["source_path"] = each_nexus_url
                     continue
                 else:
                     print("[ERROR] Problem in download artifact from nexus")
@@ -146,9 +161,11 @@ def check_artifact_from_nexus(url_list, artifact_name):
             sys.exit(1)
 
     if not file_found:
-        print("[ERROR] This artifact: %s does not exist in nexus" %(filename))
+        print("[ERROR] This artifact: %s does not exist in nexus" %(artifact_name['source_jar']))
         sys.exit(1)
-        
+
+    else:
+        return result   
 
 
 ''' 
@@ -192,6 +209,7 @@ def main():
     if do_what == "build":
         print("[INFO] Going to build the application")
         print("[INFO] Getting the cordinator file")
+        result = defaultdict(dict)
         cordinator_list = get_changed_cordinator(project_dir)
         if cordinator_list: 
             print("[INFO] Found cordinator files which needs to be build")
@@ -201,9 +219,13 @@ def main():
                     print(each_file_in_cordinator)
                     with open(each_file_in_cordinator, 'r') as json_file:
                         data = json.load(json_file)
-                        final_dict = parse_json_object(data)
-                        print("[INFO] Consolidated dict is: %s" %(final_dict))
-                        check_artifact_on_vcs(final_dict)
+                    final_dict = parse_json_object(data)
+                    print("[INFO] Consolidated dict is: %s" %(final_dict))
+                    output = check_artifact_on_vcs(final_dict)
+                    result[each_file_in_cordinator] = output
+            print("[INFO] Going to log all build information")
+            with open(build_result, 'w') as json_result:
+                json_result.write(json.dumps(result))
 
     elif do_what == "release":
         print("[INFO] Going to deploy the application")
