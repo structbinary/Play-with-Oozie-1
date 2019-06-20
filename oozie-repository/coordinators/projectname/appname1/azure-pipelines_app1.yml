@@ -1,0 +1,44 @@
+ resources:
+- repo: self
+
+pool:
+    name: Default
+
+trigger:
+  branches:
+    include:
+    - master
+#    exclude:
+#    - master
+  paths:
+    include:
+    - oozie-repository/coordinators/projectname/appname1 ## '*'  same as '/' for the repository root
+    exclude:
+    - 'docs/*' # same as 'docs/'
+
+steps:
+
+- script: |
+    echo '##vso[task.setvariable variable=pig]$(pig)'
+    echo '##vso[task.setvariable variable=hive]$(hive)'
+    echo '##vso[task.setvariable variable=shell]$(shell)'
+    echo '##vso[task.setvariable variable=gavr]$(gavr)'
+    whoami
+    python -V 
+    pwd
+ 
+# An environment variable called `SAUCE` has been added to all downstream steps
+- bash: |
+    echo PIG environment variable is $PIG
+    echo HIVE environment variable is $HIVE
+    echo Third environment variable is $SHELL
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: 'cat coordinator_json_parser.py'
+
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: 'python coordinator_json_parser.py build'
+
