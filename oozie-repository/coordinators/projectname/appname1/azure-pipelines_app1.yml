@@ -42,3 +42,7 @@ steps:
     targetType: 'inline'
     script: 'python coordinator_json_parser.py build'
 
+- task: PublishPipelineArtifact@0
+  inputs:
+    artifactName: 'CI-CD'
+    targetPath: '/home/cdhadmin/gitrepo/1/s/'
