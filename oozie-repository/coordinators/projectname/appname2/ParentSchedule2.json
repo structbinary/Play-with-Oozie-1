@@ -7,7 +7,7 @@
     "uuid": "14488438-1c9f-e214-116a-8ca65fdf11da", 
     "extra": "", 
     "type": "oozie-workflow2", 
-    "description": "", 
+    "description": "ParentSchedule2 represents second coordinator information", 
     "is_history": false, 
     "parent_directory": [
       "a68783c1-6d6f-4eda-bf66-df4b54bb7563", 
