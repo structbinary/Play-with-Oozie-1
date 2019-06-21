@@ -64,6 +64,7 @@ def get_last_commit_hash():
     return git_head_hash
 
 def get_changed_cordinator(cordinator_path):
+    application_path = cordinator_path + "/" + application_name
     cordinator_list = []
     repo = git.Repo(".")
     for commit in list(repo.iter_commits(max_count=1)):
@@ -73,7 +74,7 @@ def get_changed_cordinator(cordinator_path):
         commit_files_list =  commit.stats.files
         for key, value in commit_files_list.iteritems():
             input_string = str(key)
-            if cordinator_path in input_string:
+            if application_path in input_string:
                 path = Path(input_string)
                 relative_path = path.relative_to(project_dir)
                 appname = str(relative_path).split("/")[0]
