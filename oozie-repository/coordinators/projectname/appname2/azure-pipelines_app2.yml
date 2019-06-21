@@ -24,8 +24,7 @@ steps:
     echo '##vso[task.setvariable variable=shell]$(shell)'
     echo '##vso[task.setvariable variable=gavr]$(gavr)'
     echo '##vso[task.setvariable variable=app_name]appname2'
-    whoami
-    python -V 
+    echo "I am `whoami` and my workspace is: "
     pwd
  
 # An environment variable called `SAUCE` has been added to all downstream steps
