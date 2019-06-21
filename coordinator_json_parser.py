@@ -8,6 +8,7 @@ from pathlib import Path
 from collections import defaultdict
 
 project_dir = os.environ['PROJECT_DIR']
+application_name = os.environ['APP_NAME']
 build_result = "build.json"
 
 
@@ -17,28 +18,37 @@ I'll parse the coordinator json and will return the hive, pig script path in dic
 def parse_json_object(data):
     workflow_dict = defaultdict(dict)
     for items in data:
-        data_item = items["fields"]["data"]
-        try:
-            decoded = json.loads(data_item)
-            for item in decoded['workflow']['nodes']:
-                if item['type'] == "pig-widget":
-                    print("[INFO] pig script path is: %s" %(item['properties']['script_path']))
-                    workflow_dict['PIG'] = str(item['properties']['script_path'])
-                elif item['type'] == "hive-widget":
-                    print("[INFO] hive script path is: %s" %(item['properties']['script_path']))
-                    workflow_dict['HIVE'] = str(item['properties']['script_path'])
-                elif item['type'] == "shell-widget":
-                    for shell_files in item['properties']['files']:
-                        print("[INFO] shell script path is: %s" %(shell_files['value']))
-                        workflow_dict['SHELL'] = str(shell_files['value'])
-                elif item['type'] == "spark-widget":
-                    print("[INFO] Spark artifact name is: %s" %(item['properties']['jars']))
-                    workflow_dict["GAVR"]["source_jar"] = str(item['properties']['jars'])
-                    workflow_dict["GAVR"]["hdfs_path"] = str(decoded['workflow']['properties']['deployment_dir']) + "/lib"
-                else:
-                    continue
-        except(ValueError, KeyError, TypeError):
-            print("[WARNING] in coordinator JSON")
+        if str(items["fields"]["type"]) == "oozie-workflow2":
+            data_item = items["fields"]["data"]
+            try:
+                decoded = json.loads(data_item)
+                for item in decoded['workflow']['nodes']:
+                    if item['type'] == "pig-widget":
+                        print("[INFO] pig script path is: %s" %(item['properties']['script_path']))
+                        workflow_dict['PIG']["source_artifact"] = str(item['properties']['script_path'])
+                        workflow_dict["PIG"]["hdfs_path"] = str(decoded['workflow']['properties']['deployment_dir'])
+                    elif item['type'] == "hive-widget":
+                        print("[INFO] hive script path is: %s" %(item['properties']['script_path']))
+                        print(decoded['workflow']['properties']['deployment_dir'])
+                        workflow_dict['HIVE']["source_artifact"] = str(item['properties']['script_path'])
+                        workflow_dict['HIVE']["hdfs_path"] = str(decoded['workflow']['properties']['deployment_dir'])
+                    elif item['type'] == "shell-widget":
+                        print(decoded['workflow']['properties']['deployment_dir'])
+                        for shell_files in item['properties']['files']:
+                            print("[INFO] shell script path is: %s" %(shell_files['value']))
+                            workflow_dict['SHELL']["source_artifact"] = str(shell_files['value'])
+                            workflow_dict['SHELL']["hdfs_path"] = str(decoded['workflow']['properties']['deployment_dir'])
+                    elif item['type'] == "spark-widget":
+                        print("[INFO] Spark artifact name is: %s" %(item['properties']['jars']))
+                        workflow_dict["GAVR"]["source_jar"] = str(item['properties']['jars'])
+                        workflow_dict["GAVR"]["hdfs_path"] = str(decoded['workflow']['properties']['deployment_dir']) + "/lib"
+                    else:
+                        continue
+            except(ValueError, KeyError, TypeError):
+                print("[WARNING] in coordinator JSON")
+        else:
+            print("[INFO] Couldn't found the oozie workflow so continuing in this type: %s" %(str(items["fields"]["type"])))
+            continue
     return workflow_dict
 
 
@@ -98,11 +108,11 @@ def check_artifact_on_vcs(final_dict):
             print("[INFO] Going to check nexus")
             gavr_list = fetch_repo_path(key_item)
             output = check_artifact_from_nexus(gavr_list, final_dict[key_item])
-            merge_output = merge_two_dicts(result, output)
+            result = merge_two_dicts(result, output)
         else:
-            hdfs_path = final_dict[key_item]
-            print(hdfs_path)
-            artifact = os.path.basename(final_dict[key_item])
+            artifact_path = final_dict[key_item]['source_artifact']
+            print(artifact_path)
+            artifact = os.path.basename(artifact_path)
             repository_path_list = fetch_repo_path(key_item)
             file_found = False
             found = False
@@ -112,16 +122,16 @@ def check_artifact_on_vcs(final_dict):
                 if my_file.is_file():
                     file_found = True
                     result[key_item]["source_path"] = full_path
-                    result[key_item]["hdfs_path"] = hdfs_path
+                    result[key_item]["hdfs_path"] = final_dict[key_item]['hdfs_path']
                     found = True
-		    print("[INFO] Artifact: %s has been found" %(key_item))
                     continue
                 else:
                     if found:
+                        # print("[INFO] The artifact: %s has allready been found" %(key_item))
                         continue
                     file_found = False
             if file_found:
-                print("[INFO] The artifact of %s exist in the repository" %(key_item))
+                print("[INFO] The artifact of %s exist in this path: %s" %(key_item, my_file))
             else:
                 print("[ERROR] The artifact of %s does not exist in the repository so exiting" %(key_item))
                 sys.exit(1)
@@ -210,6 +220,7 @@ def main():
         print("[INFO] Going to build the application")
         print("[INFO] Getting the cordinator file")
         result = defaultdict(dict)
+        application_build  = defaultdict(dict)
         cordinator_list = get_changed_cordinator(project_dir)
         if cordinator_list: 
             print("[INFO] Found cordinator files which needs to be build")
@@ -224,9 +235,15 @@ def main():
                     output = check_artifact_on_vcs(final_dict)
                     result[each_file_in_cordinator] = output
             print("[INFO] Going to log all build information")
-            with open(build_result, 'w') as json_result:
-                json_result.write(json.dumps(result))
-
+            for key , value in result.iteritems():
+                app_name = os.path.dirname(key)
+                app_name = os.path.basename(app_name)
+                if app_name == application_name:
+                    application_build[key] = result[key]
+                    with open(build_result, 'w') as json_result:
+                        json_result.write(json.dumps(application_build))
+                else:
+                    print("[INFO] This cordinator: %s file does not belong to this application: %s so not doing anything.." %(str(key), str(app_name)))
     elif do_what == "release":
         print("[INFO] Going to deploy the application")
     else:
