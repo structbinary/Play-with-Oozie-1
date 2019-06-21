@@ -173,13 +173,21 @@ def copy_from_local_to_hdfs(build_data):
                     sys.exit(1)
 
         print("[INFO] Successfully copied all the artifact now loading this cordinator: %s" %(str(key)))
-        hue_command = "/opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata " + str(key)
-        hue_command_output, hue_command_status_code = execute_command(hue_command)
-        if hue_command_status_code == 0:
-            print("[INFO] Successfully imported the cordinator")
+        hue_command_to_execute_previously = "sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH=\"/home/cdhadmin/anaconda2/bin:$PATH\" ; export HUE_CONF_DIR=\"/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`\" ; sudo chmod -R 757 $HUE_CONF_DIR"
+        command_output, command_status_code = execute_command(hue_command_to_execute_previously)
+        if command_status_code == 0:   
+            hue_command = "HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=P8T0wc1L6s /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata " + str(key)
+            hue_command_output, hue_command_status_code = execute_command(hue_command)
+            if hue_command_status_code == 0:
+                print("[INFO] Successfully imported the cordinator")
+            else:
+                print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
+                sys.exit(1)
         else:
-            print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
-            sys.exit(1)
+            print("[ERROR] Something went wrong while executing this command %s" %(hue_command_to_execute_previously))
+            print("[INFO] Going to Revert back whole process")
+            take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
+            
     print("[INFO] Deployment done successfully..")
 
 def main():
