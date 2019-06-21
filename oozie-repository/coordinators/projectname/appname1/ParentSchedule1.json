@@ -7,7 +7,7 @@
     "uuid": "db5154ea-f76e-4989-a270-6bfdaad52b8f", 
     "extra": "", 
     "type": "oozie-workflow2", 
-    "description": "Simple spark file copy workflow", 
+    "description": "Simple spark file copy workflow-test1", 
     "is_history": false, 
     "parent_directory": [
       "d47d257b-7d54-498b-8395-bf07a0941216", 
