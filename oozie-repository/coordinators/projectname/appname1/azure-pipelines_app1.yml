@@ -24,19 +24,9 @@ steps:
     echo '##vso[task.setvariable variable=shell]$(shell)'
     echo '##vso[task.setvariable variable=gavr]$(gavr)'
     echo '##vso[task.setvariable variable=app_name]appname1'
-    whoami
-    python -V 
+    echo "I am `whoami` and my workspace is: "
     pwd
  
-# An environment variable called `SAUCE` has been added to all downstream steps
-- bash: |
-    echo PIG environment variable is $PIG
-    echo HIVE environment variable is $HIVE
-    echo Third environment variable is $SHELL
-- task: Bash@3
-  inputs:
-    targetType: 'inline'
-    script: 'cat coordinator_json_parser.py'
 
 - task: Bash@3
   inputs:
