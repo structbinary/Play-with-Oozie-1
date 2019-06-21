@@ -53,22 +53,28 @@ def create_subworkflow_dir(appname, workflow_info):
 
 def check_backup_directory(directory_info, hdfs_back_dir):
     print("[INFO] Going to check backup folder")
-    for key, value in directory_info.iteritems():
-        app_name = os.path.dirname(key)
-        app_name = os.path.basename(app_name)
-        application_dir = hdfs_back_dir + "/" + str(app_name)
-        hdfs_command = "if hdfs dfs -test -d " + application_dir + "; then echo 'exist'; fi"
-        output, status = execute_command(hdfs_command)
-        if output == "exist" and status == 0:
-            print("[INFO] Backup directory of this application: %s already exist so recreating from fresh.." %(str(key)))
-            remove_backup_command = "hdfs dfs -rm -r " + application_dir
-            remove_output, remove_status = execute_command(remove_backup_command)
-            if remove_status == 0:
+    check_backup_dir_command = "if hdfs dfs -test -d " + hdfs_back_dir + "; then echo 'exist'; fi"
+    check_backup_output, check_backup_status_code = execute_command(check_backup_dir_command)
+    if check_backup_output == "exist" and check_backup_status_code == 0:
+        print("[INFO] Backup directory exist so going to create application specific backup directories")
+        for key, value in directory_info.iteritems():
+            app_name = os.path.dirname(key)
+            app_name = os.path.basename(app_name)
+            application_dir = hdfs_back_dir + "/" + str(app_name)
+            hdfs_command = "if hdfs dfs -test -d " + application_dir + "; then echo 'exist'; fi"
+            output, status = execute_command(hdfs_command)
+            if output == "exist" and status == 0:
+                print("[INFO] Backup directory of this application: %s already exist so recreating from fresh.." %(str(key)))
+                remove_backup_command = "hdfs dfs -rm -r " + application_dir
+                remove_output, remove_status = execute_command(remove_backup_command)
+                if remove_status == 0:
+                    create_subworkflow_dir(application_dir, value)
+            else:
+                print("[INFO] Backup directory of this application: %s does not exist previously so going to create.." %(str(key)))
                 create_subworkflow_dir(application_dir, value)
-        else:
-            print("[INFO] Backup directory of this application: %s does not exist previously so going to create.." %(str(key)))
-            create_subworkflow_dir(application_dir, value)
-
+    else:
+        print("[ERROR] Backup path: %s does not exist previously in hdfs so create first." %(hdfs_back_dir))
+        sys.exit(1)
 
 def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
     application_name = None
@@ -81,20 +87,29 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
             workflow_name = str(k)
             workflow_backup_dir = hdfs_back_dir + "/" + application_name + "/" + workflow_name + "/"
             workflow_hdfs_path = str(v["hdfs_path"])
+            workflow_source_path = str(v["source_path"])
+            workflow_hdfs_source_path = str(os.path.basename(workflow_source_path))
             if type == "release":
-                backup_copy_command = "hdfs dfs -mv" + " " + workflow_hdfs_path + " " + workflow_backup_dir
-                print("[INFO] Taking backup of this application: %s of this component: %s from hdfs path: %s to back up directory: %s" %(application_name, workflow_name, workflow_hdfs_path, workflow_backup_dir))
-                backup_output , backup_result = execute_command(backup_copy_command)
-                if backup_result == 0:
-                    print("[INFO] Backup finished for this workflow")
+                command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + workflow_hdfs_path + "/" + workflow_hdfs_source_path + " && echo 'exist'"
+                check_output, check_command_status = execute_command(command_to_check_file_exist_in_hdfs)
+                if check_output == "exist" and check_command_status == 0:
+                    print("[INFO] This artifact: %s exist in hdfs path: %s so going to take backup" %(workflow_hdfs_source_path, workflow_hdfs_path))
+                    backup_copy_command = "hdfs dfs -mv" + " " + workflow_hdfs_path + "/" + workflow_hdfs_source_path  + " " + workflow_backup_dir
+                    print("[INFO] Taking backup of this application: %s of this component: %s from hdfs path: %s to back up directory: %s" %(application_name, workflow_name, workflow_hdfs_path, workflow_backup_dir))
+                    backup_output , backup_result = execute_command(backup_copy_command)
+                    if backup_result == 0:
+                        print("[INFO] Backup finished for this workflow")
+                    else:
+                        print("[ERROR] Something happened while executing this command %s" %(backup_copy_command))
+                        exit(1)
                 else:
-                    print("[ERROR] Something happened while executing this command %s" %(backup_copy_command))
-                    exit(1)
+                    print("[INFO] Seems like You are doing deployment firsttime so continuing..")
+                    continue
             elif type == "revert":
                 print("[INFO] Revert process started for this application: %s for this workflow: %s " %(application_name, workflow_name))
                 get_file_name_command = "hdfs dfs -ls " + workflow_backup_dir
                 get_filename, get_file_name_status_code =  execute_command(get_file_name_command)
-                revert_command = "hdfs dfs -mv" + " " + workflow_backup_dir + get_filename + " " + workflow_hdfs_path
+                revert_command = "hdfs dfs -mv" + " " + workflow_backup_dir + get_filename + " " + workflow_hdfs_path + "/" + workflow_hdfs_source_path
                 revert_output, revert_status_code = execute_command(revert_command)
                 if revert_status_code == 0:
                     print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
@@ -119,6 +134,10 @@ def download_artifact_from_nexus(nexus_url, path_to_download):
             successfully_download = False
     return (full_path, successfully_download)
 
+
+def revert_data(build_info):
+    pass
+
 def copy_from_local_to_hdfs(build_data):
     output = defaultdict(dict)
     for key , value in build_data.iteritems():
@@ -141,14 +160,18 @@ def copy_from_local_to_hdfs(build_data):
             else:
                 output[k] = v["hdfs_path"]
                 hdfs_path = str(v["hdfs_path"])
-                deployment_command = "hdfs dfs -copyFromLocal " + source_path + " " + hdfs_path
+                source_file_name = str(v["source_path"])
+                hdfs_full_path = hdfs_path + "/" + source_file_name
+                deployment_command = "hdfs dfs -copyFromLocal " + source_path + " " + hdfs_full_path
                 deployment_output, deployment_status_code = execute_command(deployment_command)
                 if deployment_status_code == 0:
-                    print("[INFO] Successfully copied from local: %s to hdfs path: %s" %(source_path, hdfs_path))
+                    print("[INFO] Successfully copied from local: %s to hdfs path: %s" %(source_path, hdfs_full_path))
                 else:
-                    print("[ERROR] Something went wrong while copying from local: %s to hdfs path: %s" %(source_path, hdfs_path))
+                    print("[ERROR] Something went wrong while executing this command: %s " %(deployment_command))
                     print("[ERROR] Going to revert the changes")
+                    take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
                     sys.exit(1)
+
         print("[INFO] Successfully copied all the artifact now loading this cordinator: %s" %(str(key)))
         hue_command = "/opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata " + str(key)
         hue_command_output, hue_command_status_code = execute_command(hue_command)
