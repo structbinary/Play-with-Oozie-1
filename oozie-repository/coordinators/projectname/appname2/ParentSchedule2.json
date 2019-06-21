@@ -7,7 +7,7 @@
     "uuid": "ed3cca23-bda3-4db0-aefc-9850a075c049", 
     "extra": "", 
     "type": "oozie-workflow2", 
-    "description": "Pig workflow-test2", 
+    "description": "Pig workflow-test3", 
     "is_history": false, 
     "parent_directory": [
       "d47d257b-7d54-498b-8395-bf07a0941216", 
