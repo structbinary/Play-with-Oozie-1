@@ -137,7 +137,7 @@ def check_artifact_on_vcs(final_dict , cordinator_path):
             else:
                 print("[ERROR] The artifact of %s does not exist in the repository so exiting" %(key_item))
                 sys.exit(1)
-    result["job_properties_path"] = job_properties_path
+    result["JOB_PROPERTIES_PATH"]["path"] = job_properties_path
     return result
 
 def get_full_path(file_name, path):
