@@ -47,7 +47,6 @@ def parse_json_object(data):
             except(ValueError, KeyError, TypeError):
                 print("[WARNING] in coordinator JSON")
         else:
-            print("[INFO] Couldn't found the oozie workflow so continuing in this type: %s" %(str(items["fields"]["type"])))
             continue
     return workflow_dict
 
