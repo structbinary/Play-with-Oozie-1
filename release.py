@@ -51,6 +51,26 @@ def create_subworkflow_dir(appname, workflow_info):
         print("ERROR in creating backup directory in hdfs")
         sys.exit(1)
 
+def delete_previous_artifact(build_info):
+    output = defaultdict(dict)
+    for key , value in build_info.iteritems():
+        for k , v in value.iteritems():
+            if str(k) == "GAVR":    
+                source_path = str(v["source_path"])
+                file_name = source_path[source_path.rfind("/")+1:]
+            else:
+                source_path = str(v["source_path"]) 
+                file_name = os.path.basename(source_path)
+
+            hdfs_path = str(v["hdfs_path"])
+            hdfs_full_path = hdfs_path  + "/" + file_name
+            remove_hdfs_file_command = "hdfs dfs -rm -r " + hdfs_full_path
+            remove_command_output , remove_command_status_code = execute_command(remove_hdfs_file_command)
+            if remove_command_status_code == 0:
+                print("[INFO] Successfully removed this artifact %s" %(hdfs_full_path))
+            else:
+                print("[ERROR] Something went wrong while executing this command %s" %(remove_hdfs_file_command))
+
 def check_backup_directory(directory_info, hdfs_back_dir):
     print("[INFO] Going to check backup folder")
     check_backup_dir_command = "if hdfs dfs -test -d " + hdfs_back_dir + "; then echo 'exist'; fi"
@@ -79,6 +99,8 @@ def check_backup_directory(directory_info, hdfs_back_dir):
 def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
     application_name = None
     workflow_name = None
+    is_hdfs_artifact_deleted = False
+    status = False
     for key , value in build_info.iteritems():
         app_name = os.path.dirname(key)
         app_name = os.path.basename(app_name)
@@ -94,9 +116,6 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                 source_path = str(v["source_path"])
                 file_name = os.path.basename(source_path)
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name 
-            # workflow_hdfs_path = str(v["hdfs_path"])
-            # workflow_source_path = str(v["source_path"])
-            # workflow_hdfs_source_path = str(os.path.basename(workflow_source_path))
             if type == "release":
                 command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + hdfs_full_path + "/" + " && echo 'exist'"
                 check_output, check_command_status = execute_command(command_to_check_file_exist_in_hdfs)
@@ -107,6 +126,7 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                     backup_output , backup_result = execute_command(backup_copy_command)
                     if backup_result == 0:
                         print("[INFO] Backup finished for this workflow")
+                        status = True
                     else:
                         print("[ERROR] Something happened while executing this command %s" %(backup_copy_command))
                         exit(1)
@@ -115,19 +135,26 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                     continue
             elif type == "revert":
                 print("[INFO] Revert process started for this application: %s for this workflow: %s " %(application_name, workflow_name))
+                if not is_hdfs_artifact_deleted:
+                    delete_previous_artifact(build_info)
+                    is_hdfs_artifact_deleted = True
                 get_file_name_command = "hdfs dfs -ls " + workflow_backup_dir + " | tail -1 | awk -F' ' '{print $8}'"
                 get_filename, get_file_name_status_code =  execute_command(get_file_name_command)
                 if get_file_name_status_code == 0:
                     revert_command = "hdfs dfs -mv" + " " + get_filename + " " + hdfs_full_path
                     revert_output, revert_status_code = execute_command(revert_command)
+                    print(revert_output)
                     if revert_status_code == 0:
                         print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
+                        status = False
                     else:
                         print("[ERROR] Something bad happened while trying to revert this application: %s for this workflow: %s " %(application_name, workflow_name))
                 else:
                     print("[ERROR] Something went wrong while executing this command: %s" %(get_file_name_command))
             else:
                 continue
+    if not status:
+        sys.exit(1)
 
 def download_artifact_from_nexus(nexus_url, path_to_download):
     successfully_download = False
