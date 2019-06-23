@@ -86,16 +86,24 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
         for k,v in value.iteritems():
             workflow_name = str(k)
             workflow_backup_dir = hdfs_back_dir + "/" + application_name + "/" + workflow_name + "/"
-            workflow_hdfs_path = str(v["hdfs_path"])
-            workflow_source_path = str(v["source_path"])
-            workflow_hdfs_source_path = str(os.path.basename(workflow_source_path))
+            if str(k) == "GAVR":
+               gavr_url = str(v["source_path"])
+               file_name = gavr_url[gavr_url.rfind("/")+1:]
+               hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
+            else:
+                source_path = str(v["source_path"])
+                file_name = os.path.basename(source_path)
+                hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name 
+            # workflow_hdfs_path = str(v["hdfs_path"])
+            # workflow_source_path = str(v["source_path"])
+            # workflow_hdfs_source_path = str(os.path.basename(workflow_source_path))
             if type == "release":
-                command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + workflow_hdfs_path + "/" + workflow_hdfs_source_path + " && echo 'exist'"
+                command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + hdfs_full_path + "/" + " && echo 'exist'"
                 check_output, check_command_status = execute_command(command_to_check_file_exist_in_hdfs)
                 if check_output == "exist" and check_command_status == 0:
-                    print("[INFO] This artifact: %s exist in hdfs path: %s so going to take backup" %(workflow_hdfs_source_path, workflow_hdfs_path))
-                    backup_copy_command = "hdfs dfs -mv" + " " + workflow_hdfs_path + "/" + workflow_hdfs_source_path  + " " + workflow_backup_dir
-                    print("[INFO] Taking backup of this application: %s of this component: %s from hdfs path: %s to back up directory: %s" %(application_name, workflow_name, workflow_hdfs_path, workflow_backup_dir))
+                    print("[INFO] This artifact: %s exist in hdfs path: %s so going to take backup" %(file_name, hdfs_full_path))
+                    backup_copy_command = "hdfs dfs -mv" + " " + hdfs_full_path + "/" + " " + workflow_backup_dir
+                    print("[INFO] Taking backup of this application: %s of this component: %s from hdfs path: %s to back up directory: %s" %(application_name, workflow_name, hdfs_full_path, workflow_backup_dir))
                     backup_output , backup_result = execute_command(backup_copy_command)
                     if backup_result == 0:
                         print("[INFO] Backup finished for this workflow")
@@ -109,12 +117,15 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                 print("[INFO] Revert process started for this application: %s for this workflow: %s " %(application_name, workflow_name))
                 get_file_name_command = "hdfs dfs -ls " + workflow_backup_dir + " | tail -1 | awk -F' ' '{print $8}'"
                 get_filename, get_file_name_status_code =  execute_command(get_file_name_command)
-                revert_command = "hdfs dfs -mv" + " " + get_filename + " " + workflow_hdfs_path + "/" + workflow_hdfs_source_path
-                revert_output, revert_status_code = execute_command(revert_command)
-                if revert_status_code == 0:
-                    print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
+                if get_file_name_status_code == 0:
+                    revert_command = "hdfs dfs -mv" + " " + get_filename + " " + hdfs_full_path
+                    revert_output, revert_status_code = execute_command(revert_command)
+                    if revert_status_code == 0:
+                        print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
+                    else:
+                        print("[ERROR] Something bad happened while trying to revert this application: %s for this workflow: %s " %(application_name, workflow_name))
                 else:
-                    print("[ERROR] Something bad happened while trying to revert this application: %s for this workflow: %s " %(application_name, workflow_name))
+                    print("[ERROR] Something went wrong while executing this command: %s" %(get_file_name_command))
             else:
                 continue
 
@@ -179,6 +190,7 @@ def copy_from_local_to_hdfs(build_data):
         hue_command = """sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH="/home/cdhadmin/anaconda2/bin:$PATH" ;export HUE_CONF_DIR="/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`" ; sudo chmod -R 757 $HUE_CONF_DIR; HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata """ + str(key)
         hue_command_output, hue_command_status_code = execute_command(hue_command)
         if hue_command_status_code == 0:
+            print(hue_command_output)
             print("[INFO] Successfully imported the cordinator")
         else:
             print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
