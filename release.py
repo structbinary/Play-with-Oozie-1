@@ -149,8 +149,13 @@ def copy_from_local_to_hdfs(build_data):
                 download_path = "/tmp"
                 output_path , able_to_download = download_artifact_from_nexus(str(v["source_path"]), download_path)
                 source_path = output_path
+                gavr_url = str(v["source_path"])
+                file_name = gavr_url[gavr_url.rfind("/")+1:]
+                hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
             else:
                 source_path = str(v["source_path"])
+                file_name = os.path.basename(source_path)
+                hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
             if k in output:
                 if str(v["hdfs_path"]) == str(output[k]):
                     print("[INFO] This artifact: %s has allready been copied" %(source_path))
@@ -158,10 +163,9 @@ def copy_from_local_to_hdfs(build_data):
                 else:
                     continue
             else:
-                output[k] = v["hdfs_path"]
-                hdfs_path = str(v["hdfs_path"])
-                source_file_name = str(v["source_path"])
-                hdfs_full_path = hdfs_path + "/" + source_file_name
+                output[k] = v["hdfs_path"]                
+                # source_file_name = str(v["source_path"])
+                # hdfs_full_path = hdfs_path + "/" + source_file_name
                 deployment_command = "hdfs dfs -copyFromLocal " + source_path + " " + hdfs_full_path
                 deployment_output, deployment_status_code = execute_command(deployment_command)
                 if deployment_status_code == 0:
@@ -173,20 +177,22 @@ def copy_from_local_to_hdfs(build_data):
                     sys.exit(1)
 
         print("[INFO] Successfully copied all the artifact now loading this cordinator: %s" %(str(key)))
-        hue_command_to_execute_previously = "sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH=\"/home/cdhadmin/anaconda2/bin:$PATH\" ; export HUE_CONF_DIR=\"/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`\" ; sudo chmod -R 757 $HUE_CONF_DIR"
+        hue_command_to_execute_previously = "sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export HUE_CONF_DIR=\"/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`\" ; sudo chmod -R 757 $HUE_CONF_DIR"
         command_output, command_status_code = execute_command(hue_command_to_execute_previously)
         if command_status_code == 0:   
-            hue_command = "HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=P8T0wc1L6s /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata " + str(key)
+            hue_command = "HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata " + str(key)
             hue_command_output, hue_command_status_code = execute_command(hue_command)
             if hue_command_status_code == 0:
                 print("[INFO] Successfully imported the cordinator")
             else:
                 print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
+                take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
                 sys.exit(1)
         else:
             print("[ERROR] Something went wrong while executing this command %s" %(hue_command_to_execute_previously))
             print("[INFO] Going to Revert back whole process")
             take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
+            sys.exit(1)
             
     print("[INFO] Deployment done successfully..")
 
