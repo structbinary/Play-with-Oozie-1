@@ -100,7 +100,9 @@ def merge_two_dicts(x, y):
 ''' 
 I'll check whether the file is present on the required directory or not
 '''
-def check_artifact_on_vcs(final_dict):
+def check_artifact_on_vcs(final_dict , cordinator_path):
+    cordinator_full_path = cordinator_path
+    job_properties_path = str(os.path.dirname(os.path.abspath(cordinator_full_path))) + "/job.properties" 
     key_list = final_dict.keys()
     result = defaultdict(dict)
     for key_item in key_list:
@@ -135,6 +137,7 @@ def check_artifact_on_vcs(final_dict):
             else:
                 print("[ERROR] The artifact of %s does not exist in the repository so exiting" %(key_item))
                 sys.exit(1)
+    result["job_properties_path"] = job_properties_path
     return result
 
 def get_full_path(file_name, path):
@@ -232,7 +235,7 @@ def main():
                         data = json.load(json_file)
                     final_dict = parse_json_object(data)
                     print("[INFO] Consolidated dict is: %s" %(final_dict))
-                    output = check_artifact_on_vcs(final_dict)
+                    output = check_artifact_on_vcs(final_dict, each_file_in_cordinator)
                     result[each_file_in_cordinator] = output
             print("[INFO] Going to log all build information")
             for key , value in result.iteritems():
