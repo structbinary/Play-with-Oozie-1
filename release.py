@@ -107,9 +107,9 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                     continue
             elif type == "revert":
                 print("[INFO] Revert process started for this application: %s for this workflow: %s " %(application_name, workflow_name))
-                get_file_name_command = "hdfs dfs -ls " + workflow_backup_dir
+                get_file_name_command = "hdfs dfs -ls " + workflow_backup_dir + " | tail -1 | awk -F' ' '{print $8}'"
                 get_filename, get_file_name_status_code =  execute_command(get_file_name_command)
-                revert_command = "hdfs dfs -mv" + " " + workflow_backup_dir + get_filename + " " + workflow_hdfs_path + "/" + workflow_hdfs_source_path
+                revert_command = "hdfs dfs -mv" + " " + get_filename + " " + workflow_hdfs_path + "/" + workflow_hdfs_source_path
                 revert_output, revert_status_code = execute_command(revert_command)
                 if revert_status_code == 0:
                     print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
@@ -175,25 +175,16 @@ def copy_from_local_to_hdfs(build_data):
                     print("[ERROR] Going to revert the changes")
                     take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
                     sys.exit(1)
-
-        print("[INFO] Successfully copied all the artifact now loading this cordinator: %s" %(str(key)))
-        hue_command_to_execute_previously = "sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export HUE_CONF_DIR=\"/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`\" ; sudo chmod -R 757 $HUE_CONF_DIR"
-        command_output, command_status_code = execute_command(hue_command_to_execute_previously)
-        if command_status_code == 0:   
-            hue_command = "HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata " + str(key)
-            hue_command_output, hue_command_status_code = execute_command(hue_command)
-            if hue_command_status_code == 0:
-                print("[INFO] Successfully imported the cordinator")
-            else:
-                print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
-                take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
-                sys.exit(1)
+ 
+        hue_command = """sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH="/home/cdhadmin/anaconda2/bin:$PATH" ;export HUE_CONF_DIR="/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`" ; sudo chmod -R 757 $HUE_CONF_DIR; HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata """ + str(key)
+        hue_command_output, hue_command_status_code = execute_command(hue_command)
+        if hue_command_status_code == 0:
+            print("[INFO] Successfully imported the cordinator")
         else:
-            print("[ERROR] Something went wrong while executing this command %s" %(hue_command_to_execute_previously))
-            print("[INFO] Going to Revert back whole process")
+            print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
             take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
             sys.exit(1)
-            
+ 
     print("[INFO] Deployment done successfully..")
 
 def main():
