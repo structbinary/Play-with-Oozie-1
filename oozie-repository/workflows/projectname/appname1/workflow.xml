@@ -1,0 +1,67 @@
+<workflow-app name="ParentWorkflow1" xmlns="uri:oozie:workflow:0.5">
+    <start to="fork-917e"/>
+    <kill name="Kill">
+        <message>Action failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+    <action name="subworkflow-8e75">
+        <sub-workflow>
+            <app-path>${nameNode}/user/hue/oozie/workspaces/wf_pigworkflow</app-path>
+              <propagate-configuration/>
+            <configuration>
+                <property>
+                    <name>hue-id-w</name>
+                    <value>10</value>
+                </property>
+            </configuration>
+        </sub-workflow>
+        <ok to="join-2298"/>
+        <error to="Kill"/>
+    </action>
+    <action name="shell-b71c">
+        <shell xmlns="uri:oozie:shell-action:0.1">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <exec>shell.sh</exec>
+            <file>shell.sh#shell.sh</file>
+              <capture-output/>
+        </shell>
+        <ok to="hive-1efc"/>
+        <error to="Kill"/>
+    </action>
+    <fork name="fork-917e">
+        <path start="subworkflow-8e75" />
+        <path start="shell-b71c" />
+    </fork>
+    <join name="join-2298" to="End"/>
+    <action name="hive-1efc" cred="hcat">
+        <hive xmlns="uri:oozie:hive-action:0.2">
+            <job-tracker>${jobTracker}</job-tracker>
+            <name-node>${nameNode}</name-node>
+            <prepare>
+                  <delete path="${nameNode}/user/hue/output-data/hive"/>
+            </prepare>
+              <job-xml>/user/hue/hive-site.xml</job-xml>
+            <script>script.ql</script>
+              <param>INPUT=/user/hive/warehouse/customers</param>
+              <param>OUTPUT=/user/hue/output-data/hive</param>
+            <file>script.ql#script.ql</file>
+        </hive>
+        <ok to="subworkflow-b494"/>
+        <error to="Kill"/>
+    </action>
+    <action name="subworkflow-b494">
+        <sub-workflow>
+            <app-path>${nameNode}/user/hue/oozie/workspaces/wf_sparkworkflow</app-path>
+              <propagate-configuration/>
+            <configuration>
+                <property>
+                    <name>hue-id-w</name>
+                    <value>9</value>
+                </property>
+            </configuration>
+        </sub-workflow>
+        <ok to="join-2298"/>
+        <error to="Kill"/>
+    </action>
+    <end name="End"/>
+</workflow-app>

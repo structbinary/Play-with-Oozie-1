@@ -1,0 +1,35 @@
+<workflow-app name="ParentWorkflow2" xmlns="uri:oozie:workflow:0.5">
+    <start to="subworkflow-a4af"/>
+    <kill name="Kill">
+        <message>Action failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+    </kill>
+    <action name="subworkflow-a4af">
+        <sub-workflow>
+            <app-path>${nameNode}/user/hue/oozie/workspaces/wf_hiveworkflow</app-path>
+              <propagate-configuration/>
+            <configuration>
+                <property>
+                    <name>hue-id-w</name>
+                    <value>50023</value>
+                </property>
+            </configuration>
+        </sub-workflow>
+        <ok to="subworkflow-caf2"/>
+        <error to="Kill"/>
+    </action>
+    <action name="subworkflow-caf2">
+        <sub-workflow>
+            <app-path>${nameNode}/user/hue/oozie/workspaces/wf_pigworkflow</app-path>
+              <propagate-configuration/>
+            <configuration>
+                <property>
+                    <name>hue-id-w</name>
+                    <value>10</value>
+                </property>
+            </configuration>
+        </sub-workflow>
+        <ok to="End"/>
+        <error to="Kill"/>
+    </action>
+    <end name="End"/>
+</workflow-app>
