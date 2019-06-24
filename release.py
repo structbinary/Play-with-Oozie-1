@@ -7,6 +7,7 @@ from collections import defaultdict
 
 build_result = "build.json"
 hdfs_back_dir = os.environ['HDFS_BACK_DIR']
+oozie_url = os.environ["OOZIE_URL"]
 
 def execute_command(command):
     print(command)
@@ -58,6 +59,8 @@ def delete_previous_artifact(build_info):
             if str(k) == "GAVR":    
                 source_path = str(v["source_path"])
                 file_name = source_path[source_path.rfind("/")+1:]
+            elif str(k) == "JOB_PROPERTIES_PATH":
+                continue
             else:
                 source_path = str(v["source_path"]) 
                 file_name = os.path.basename(source_path)
@@ -112,6 +115,8 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                gavr_url = str(v["source_path"])
                file_name = gavr_url[gavr_url.rfind("/")+1:]
                hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
+            elif str(k) == "JOB_PROPERTIES_PATH":
+                continue
             else:
                 source_path = str(v["source_path"])
                 file_name = os.path.basename(source_path)
@@ -173,8 +178,22 @@ def download_artifact_from_nexus(nexus_url, path_to_download):
     return (full_path, successfully_download)
 
 
-def revert_data(build_info):
-    pass
+def run_oozie_jobs(value):
+    successfully_ran = False
+    for k,v in value.iteritems():
+        if str(k) == "JOB_PROPERTIES_PATH":
+            job_properties_path = str(v["path"])
+            oozie_command_line_command = "sudo -u hue oozie job -oozie " + oozie_url + " -config " + str(job_properties_path) + " -run"
+            oozie_output, oozie_status_code = execute_command(oozie_command_line_command)
+            if oozie_status_code == 0:
+                print("[INFO] Successfully ran the workflow as well")
+                successfully_ran = True
+            else:
+                print("[ERROR] Issue while executing this command %s" %(oozie_command_line_command))
+                successfully_ran = False
+        else:
+            continue
+    return successfully_ran
 
 def copy_from_local_to_hdfs(build_data):
     output = defaultdict(dict)
@@ -190,6 +209,9 @@ def copy_from_local_to_hdfs(build_data):
                 gavr_url = str(v["source_path"])
                 file_name = gavr_url[gavr_url.rfind("/")+1:]
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
+
+            elif str(k) == "JOB_PROPERTIES_PATH":
+                continue
             else:
                 source_path = str(v["source_path"])
                 file_name = os.path.basename(source_path)
@@ -218,7 +240,10 @@ def copy_from_local_to_hdfs(build_data):
         hue_command_output, hue_command_status_code = execute_command(hue_command)
         if hue_command_status_code == 0:
             print(hue_command_output)
-            print("[INFO] Successfully imported the cordinator")
+            print("[INFO] Successfully imported the cordinator now going to run the oozie via cli")
+            oozie_command_output = run_oozie_jobs(value)
+            if not oozie_command_output:
+                take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
         else:
             print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
             take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
