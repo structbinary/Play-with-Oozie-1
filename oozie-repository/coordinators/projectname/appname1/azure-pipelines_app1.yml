@@ -24,6 +24,7 @@ steps:
     echo '##vso[task.setvariable variable=shell]$(shell)'
     echo '##vso[task.setvariable variable=gavr]$(gavr)'
     echo '##vso[task.setvariable variable=app_name]appname1'
+    echo '##vso[task.setvariable variable=cordinator_parent_workflow]oozie-repository/workflows/projectname/appname1'
     echo "I am `whoami` and my workspace is: "
     pwd
  
