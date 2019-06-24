@@ -37,4 +37,4 @@ steps:
 - task: PublishPipelineArtifact@0
   inputs:
     artifactName: 'CI-CD'
-    targetPath: '/home/cdhadmin/myagent/cicd/1/s'
+    targetPath:
