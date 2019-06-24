@@ -116,7 +116,7 @@ def check_artifact_on_vcs(final_dict):
             gavr_list = fetch_repo_path(key_item)
             output = check_artifact_from_nexus(gavr_list, final_dict[key_item])
             result = merge_two_dicts(result, output)
-        if key_item == "JOB_PROPERTIES":
+        elif key_item == "JOB_PROPERTIES":
             continue
         else:
             artifact_path = final_dict[key_item]['source_artifact']
