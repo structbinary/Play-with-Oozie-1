@@ -191,9 +191,9 @@ def run_oozie_jobs(value):
                 print(oozie_output)
                 print("[INFO] Successfully ran the workflow as well now going to check the execution status on oozie")
                 oozie_command_output = oozie_output.split(':')[1]
-                job_status_command = "oozie job -poll " + oozie_command_output + " -oozie" + oozie_url + " -interval 10 -timeout 60  -verbose"
+                job_status_command = "oozie job -poll " + oozie_command_output + " -oozie " + oozie_url + " -interval 10 -timeout 60  -verbose"
                 fetch_job_status, fetch_job_status_code = execute_command(job_status_command)
-                if str(fetch_job_status) == "KILLED":
+                if str(fetch_job_status) == "KILLED" and str(fetch_job_status) == "FAILED":
                     successfully_ran = False
                 else:
                     successfully_ran = True
