@@ -9,6 +9,7 @@ from collections import defaultdict
 
 project_dir = os.environ['PROJECT_DIR']
 application_name = os.environ['APP_NAME']
+cordinator_parent_workflow = os.environ['CORDINATOR_PARENT_WORKFLOW']
 build_result = "build.json"
 
 
@@ -100,9 +101,8 @@ def merge_two_dicts(x, y):
 ''' 
 I'll check whether the file is present on the required directory or not
 '''
-def check_artifact_on_vcs(final_dict , cordinator_path):
-    cordinator_full_path = cordinator_path
-    job_properties_path = str(os.path.dirname(os.path.abspath(cordinator_full_path))) + "/job.properties" 
+def check_artifact_on_vcs(final_dict):
+    job_properties_path = os.getcwd() + "/" + cordinator_parent_workflow + "/job.properties"
     key_list = final_dict.keys()
     result = defaultdict(dict)
     for key_item in key_list:
