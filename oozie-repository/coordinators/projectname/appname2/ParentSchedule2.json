@@ -7,7 +7,7 @@
     "uuid": "4ba4e8fe-6ba7-467e-9534-36a131778d57", 
     "extra": "", 
     "type": "oozie-workflow2", 
-    "description": "Pig workflow for demo used as subworkflow in Parent 1 and Parent 2 test1", 
+    "description": "Test1 Pig workflow for demo used as subworkflow in Parent 1 and Parent 2 test1", 
     "is_history": false, 
     "parent_directory": [
       "2b07b334-23eb-4c47-9158-027071df42c6", 
