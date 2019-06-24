@@ -235,7 +235,7 @@ def main():
                         data = json.load(json_file)
                     final_dict = parse_json_object(data)
                     print("[INFO] Consolidated dict is: %s" %(final_dict))
-                    output = check_artifact_on_vcs(final_dict, each_file_in_cordinator)
+                    output = check_artifact_on_vcs(final_dict)
                     result[each_file_in_cordinator] = output
             print("[INFO] Going to log all build information")
             for key , value in result.iteritems():
