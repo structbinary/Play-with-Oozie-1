@@ -9,7 +9,8 @@ from collections import defaultdict
 
 project_dir = os.environ['PROJECT_DIR']
 application_name = os.environ['APP_NAME']
-cordinator_parent_workflow = os.environ['CORDINATOR_PARENT_WORKFLOW']
+coordinator_parent_workflow_job_properties = os.environ['COORDINATOR_PARENT_WORKFLOW_JOB_PROPERTIES']
+coordinator_job_properties = os.environ['COORDINATOR_JOB_PROPERTIES']
 build_result = "build.json"
 
 
@@ -47,6 +48,9 @@ def parse_json_object(data):
                         continue
             except(ValueError, KeyError, TypeError):
                 print("[WARNING] in coordinator JSON")
+
+        elif str(items["fields"]["type"]) == "oozie-coordinator2":
+            workflow_dict["JOB_PROPERTIES"]["coordinator_primary_key"] = str(items["pk"])
         else:
             continue
     return workflow_dict
@@ -102,7 +106,8 @@ def merge_two_dicts(x, y):
 I'll check whether the file is present on the required directory or not
 '''
 def check_artifact_on_vcs(final_dict):
-    job_properties_path = os.getcwd() + "/" + cordinator_parent_workflow + "/job.properties"
+    parent_workflow_job_properties_path = os.getcwd() + "/" + coordinator_parent_workflow_job_properties + "/job.properties"
+    coordinator_job_properties_path = os.getcwd() + "/" + coordinator_job_properties + "/job.properties"
     key_list = final_dict.keys()
     result = defaultdict(dict)
     for key_item in key_list:
@@ -137,7 +142,9 @@ def check_artifact_on_vcs(final_dict):
             else:
                 print("[ERROR] The artifact of %s does not exist in the repository so exiting" %(key_item))
                 sys.exit(1)
-    result["JOB_PROPERTIES_PATH"]["path"] = job_properties_path
+    result["JOB_PROPERTIES"]["coordinator_primary_key"] = str(final_dict["JOB_PROPERTIES"]["coordinator_primary_key"])
+    result["JOB_PROPERTIES"]["parent_workflow_job_properties_path"] = parent_workflow_job_properties_path
+    result["JOB_PROPERTIES"]["coordinator_job_properties_path"] = coordinator_job_properties_path
     return result
 
 def get_full_path(file_name, path):
