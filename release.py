@@ -193,7 +193,8 @@ def run_oozie_jobs(value):
                 oozie_command_output = oozie_output.split(':')[1]
                 job_status_command = "oozie job -poll " + oozie_command_output + " -oozie " + oozie_url + " -interval 10 -timeout 60  -verbose"
                 fetch_job_status, fetch_job_status_code = execute_command(job_status_command)
-                if str(fetch_job_status) == "KILLED" and str(fetch_job_status) == "FAILED":
+                refactored_fetch_job_status = " ".join(fetch_job_status.split()) 
+                if str(refactored_fetch_job_status) == "KILLED" or str(refactored_fetch_job_status) == "FAILED":
                     successfully_ran = False
                 else:
                     successfully_ran = True
