@@ -122,11 +122,11 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                 file_name = os.path.basename(source_path)
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name 
             if type == "release":
-                command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + hdfs_full_path + "/" + " && echo 'exist'"
+                command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + hdfs_full_path + " && echo 'exist'"
                 check_output, check_command_status = execute_command(command_to_check_file_exist_in_hdfs)
                 if check_output == "exist" and check_command_status == 0:
                     print("[INFO] This artifact: %s exist in hdfs path: %s so going to take backup" %(file_name, hdfs_full_path))
-                    backup_copy_command = "hdfs dfs -mv" + " " + hdfs_full_path + "/" + " " + workflow_backup_dir
+                    backup_copy_command = "hdfs dfs -mv" + " " + hdfs_full_path + " " + workflow_backup_dir
                     print("[INFO] Taking backup of this application: %s of this component: %s from hdfs path: %s to back up directory: %s" %(application_name, workflow_name, hdfs_full_path, workflow_backup_dir))
                     backup_output , backup_result = execute_command(backup_copy_command)
                     if backup_result == 0:
@@ -183,11 +183,18 @@ def run_oozie_jobs(value):
     for k,v in value.iteritems():
         if str(k) == "JOB_PROPERTIES_PATH":
             job_properties_path = str(v["path"])
-            oozie_command_line_command = "sudo -u hue oozie job -oozie " + oozie_url + " -config " + str(job_properties_path) + " -run"
+            oozie_command_line_command = "oozie job -oozie " + oozie_url + " -config " + str(job_properties_path) + " -run"
             oozie_output, oozie_status_code = execute_command(oozie_command_line_command)
             if oozie_status_code == 0:
-                print("[INFO] Successfully ran the workflow as well")
-                successfully_ran = True
+                print(oozie_output)
+                print("[INFO] Successfully ran the workflow as well now going to check the execution status on oozie")
+                oozie_command_output = oozie_output.split(':')[1]
+                job_status_command = "oozie job -poll " + oozie_command_output + " -oozie" + oozie_url + " -interval 10 -timeout 60  -verbose"
+                fetch_job_status, fetch_job_status_code = execute_command(job_status_command)
+                if str(fetch_job_status) == "KILLED":
+                    successfully_ran = False
+                else:
+                    successfully_ran = True
             else:
                 print("[ERROR] Issue while executing this command %s" %(oozie_command_line_command))
                 successfully_ran = False
