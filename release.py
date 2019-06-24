@@ -137,7 +137,9 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                         exit(1)
                 else:
                     print("[INFO] Seems like You are doing deployment firsttime so continuing..")
+                    status = True
                     continue
+
             elif type == "revert":
                 print("[INFO] Revert process started for this application: %s for this workflow: %s " %(application_name, workflow_name))
                 if not is_hdfs_artifact_deleted:
