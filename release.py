@@ -59,7 +59,7 @@ def delete_previous_artifact(build_info):
             if str(k) == "GAVR":    
                 source_path = str(v["source_path"])
                 file_name = source_path[source_path.rfind("/")+1:]
-            elif str(k) == "JOB_PROPERTIES_PATH":
+            elif str(k) == "JOB_PROPERTIES":
                 continue
             else:
                 source_path = str(v["source_path"]) 
@@ -99,6 +99,30 @@ def check_backup_directory(directory_info, hdfs_back_dir):
         print("[ERROR] Backup path: %s does not exist previously in hdfs so create first." %(hdfs_back_dir))
         sys.exit(1)
 
+def get_existing_coordinator_json(primary_key, export_backup_json_path):
+    json_dump_file_name = "/data_" + primary_key + ".json"
+    export_previous_cordinator_command = """sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH="/home/cdhadmin/anaconda2/bin:$PATH" ;export HUE_CONF_DIR="/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`" ; sudo chmod -R 757 $HUE_CONF_DIR; HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue dumpdata desktop.Document2 --indent 2 --pks=""" + primary_key + " --natural > " + export_backup_json_path + json_dump_file_name
+    export_command_output, export_command_status_code = execute_command(export_previous_cordinator_command)
+    if export_command_status_code == 0:
+        print("[INFO] Previous cordinator file has been exported successfully for backup")
+    else:
+        print("[ERROR] Something went wrong while trying to export existing cordinator with this command %s" %(export_previous_cordinator_command))
+        sys.exit(1)
+
+def import_cordinator(cordinator_file_path):
+    import_successfull = False
+    import_command = """sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH="/home/cdhadmin/anaconda2/bin:$PATH" ;export HUE_CONF_DIR="/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`" ; sudo chmod -R 757 $HUE_CONF_DIR; HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata """ + str(cordinator_file_path)
+    import_command_output, import_command_status_code = execute_command(import_command)
+    if import_command_status_code == 0:
+        print(import_command_output)
+        print("[INFO] Successfully imported the cordinator")
+        import_successfull = True
+    else:
+        print("[ERROR] Something went wrong while executing this command: %s" %(import_command))
+        import_successfull = False
+
+    return import_successfull
+
 def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
     application_name = None
     workflow_name = None
@@ -108,6 +132,9 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
         app_name = os.path.dirname(key)
         app_name = os.path.basename(app_name)
         application_name = str(app_name)
+        is_cordinator_exported = False
+        dictionary_length = len(value)
+        count = 0
         for k,v in value.iteritems():
             workflow_name = str(k)
             workflow_backup_dir = hdfs_back_dir + "/" + application_name + "/" + workflow_name + "/"
@@ -115,13 +142,19 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                gavr_url = str(v["source_path"])
                file_name = gavr_url[gavr_url.rfind("/")+1:]
                hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
-            elif str(k) == "JOB_PROPERTIES_PATH":
-                continue
+            elif str(k) == "JOB_PROPERTIES":
+                cordinator_primary_key = str(v["coordinator_primary_key"])         
             else:
                 source_path = str(v["source_path"])
                 file_name = os.path.basename(source_path)
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name 
             if type == "release":
+                if not is_cordinator_exported:
+                    if str(k) == "JOB_PROPERTIES":
+                        get_existing_coordinator_json(cordinator_primary_key, '/tmp')
+                        is_cordinator_exported = True
+                    else:
+                        continue
                 command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + hdfs_full_path + " && echo 'exist'"
                 check_output, check_command_status = execute_command(command_to_check_file_exist_in_hdfs)
                 if check_output == "exist" and check_command_status == 0:
@@ -152,8 +185,14 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                     revert_output, revert_status_code = execute_command(revert_command)
                     print(revert_output)
                     if revert_status_code == 0:
+                        count += 1
                         print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
                         status = False
+                        if count == dictionary_length:
+                            cordinator_path = "/tmp/data_" + cordinator_primary_key + ".json"
+                            import_previous_cordinator = import_cordinator(cordinator_path)
+                        else:
+                            continue
                     else:
                         print("[ERROR] Something bad happened while trying to revert this application: %s for this workflow: %s " %(application_name, workflow_name))
                 else:
@@ -183,8 +222,8 @@ def download_artifact_from_nexus(nexus_url, path_to_download):
 def run_oozie_jobs(value):
     successfully_ran = False
     for k,v in value.iteritems():
-        if str(k) == "JOB_PROPERTIES_PATH":
-            job_properties_path = str(v["path"])
+        if str(k) == "JOB_PROPERTIES":
+            job_properties_path = str(v["parent_workflow_job_properties_path"])
             oozie_command_line_command = "oozie job -oozie " + oozie_url + " -config " + str(job_properties_path) + " -run"
             oozie_output, oozie_status_code = execute_command(oozie_command_line_command)
             if oozie_status_code == 0:
@@ -220,7 +259,7 @@ def copy_from_local_to_hdfs(build_data):
                 file_name = gavr_url[gavr_url.rfind("/")+1:]
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
 
-            elif str(k) == "JOB_PROPERTIES_PATH":
+            elif str(k) == "JOB_PROPERTIES":
                 continue
             else:
                 source_path = str(v["source_path"])
