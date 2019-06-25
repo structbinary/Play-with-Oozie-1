@@ -59,7 +59,7 @@ def delete_previous_artifact(build_info):
             if str(k) == "GAVR":    
                 source_path = str(v["source_path"])
                 file_name = source_path[source_path.rfind("/")+1:]
-            elif str(k) == "JOB_PROPERTIES_PATH":
+            elif str(k) == "JOB_PROPERTIES":
                 continue
             else:
                 source_path = str(v["source_path"]) 
@@ -99,15 +99,42 @@ def check_backup_directory(directory_info, hdfs_back_dir):
         print("[ERROR] Backup path: %s does not exist previously in hdfs so create first." %(hdfs_back_dir))
         sys.exit(1)
 
+def get_existing_coordinator_json(primary_key, export_backup_json_path):
+    json_dump_file_name = "/data_" + primary_key + ".json"
+    export_previous_cordinator_command = "HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=P8T0wc1L6s /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue dumpdata desktop.Document2 --indent 2 --pks=" + primary_key + " --natural > " + export_backup_json_path + json_dump_file_name
+    export_command_output, export_command_status_code = execute_command(export_previous_cordinator_command)
+    if export_command_status_code == 0:
+        print("[INFO] Previous cordinator file has been exported successfully for backup")
+    else:
+        print("[ERROR] Something went wrong while trying to export existing cordinator with this command %s" %(export_previous_cordinator_command))
+        sys.exit(1)
+
+def import_cordinator(cordinator_file_path):
+    import_successfull = False
+    import_command = """sudo chmod 755 /var/run/cloudera-scm-agent/process/ ; export PATH="/home/cdhadmin/anaconda2/bin:$PATH" ;export HUE_CONF_DIR="/var/run/cloudera-scm-agent/process/`ls -alrt /var/run/cloudera-scm-agent/process | grep -i HUE_SERVER | tail -1 | awk '{print $9}'`" ; sudo chmod -R 757 $HUE_CONF_DIR; HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=1 HUE_DATABASE_PASSWORD=ZbNNYWakrb /opt/cloudera/parcels/CDH/lib/hue/build/env/bin/hue loaddata """ + str(cordinator_file_path)
+    import_command_output, import_command_status_code = execute_command(import_command)
+    if import_command_status_code == 0:
+        print(import_command_output)
+        print("[INFO] Successfully imported the cordinator")
+        import_successfull = True
+    else:
+        print("[ERROR] Something went wrong while executing this command: %s" %(import_command))
+        import_successfull = False
+
+    return import_successfull
+
 def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
     application_name = None
     workflow_name = None
     is_hdfs_artifact_deleted = False
     status = False
+    is_cordinator_exported = False
     for key , value in build_info.iteritems():
         app_name = os.path.dirname(key)
         app_name = os.path.basename(app_name)
         application_name = str(app_name)
+        dictionary_length = len(value)
+        count = 0
         for k,v in value.iteritems():
             workflow_name = str(k)
             workflow_backup_dir = hdfs_back_dir + "/" + application_name + "/" + workflow_name + "/"
@@ -115,13 +142,20 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                gavr_url = str(v["source_path"])
                file_name = gavr_url[gavr_url.rfind("/")+1:]
                hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
-            elif str(k) == "JOB_PROPERTIES_PATH":
+            elif str(k) == "JOB_PROPERTIES":
                 continue
             else:
                 source_path = str(v["source_path"])
                 file_name = os.path.basename(source_path)
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name 
             if type == "release":
+                if not is_cordinator_exported:
+                    if str(k) == "JOB_PROPERTIES":
+                        coordinator_primary_key = str(v["coordinator_primary_key"])
+                        get_existing_coordinator_json(coordinator_primary_key, '/tmp')
+                        is_cordinator_exported = True
+                    else:
+                        continue
                 command_to_check_file_exist_in_hdfs = "hdfs dfs -test -e " + hdfs_full_path + " && echo 'exist'"
                 check_output, check_command_status = execute_command(command_to_check_file_exist_in_hdfs)
                 if check_output == "exist" and check_command_status == 0:
@@ -146,18 +180,24 @@ def take_backup_from_hdfs_and_vice_versa(build_info, hdfs_back_dir, type):
                     delete_previous_artifact(build_info)
                     is_hdfs_artifact_deleted = True
                 get_file_name_command = "hdfs dfs -ls " + workflow_backup_dir + " | tail -1 | awk -F' ' '{print $8}'"
-                get_filename, get_file_name_status_code =  execute_command(get_file_name_command)
+                get_filename, get_file_name_status_code =  execute_command(get_file_name_command)                
                 if get_file_name_status_code == 0:
                     revert_command = "hdfs dfs -mv" + " " + get_filename + " " + hdfs_full_path
                     revert_output, revert_status_code = execute_command(revert_command)
                     print(revert_output)
                     if revert_status_code == 0:
+                        count += 1
                         print("[INFO] Revert process finished for this application: %s for this workflow: %s " %(application_name, workflow_name))
                         status = False
                     else:
                         print("[ERROR] Something bad happened while trying to revert this application: %s for this workflow: %s " %(application_name, workflow_name))
                 else:
                     print("[ERROR] Something went wrong while executing this command: %s" %(get_file_name_command))
+                if count == dictionary_length:
+                    cordinator_path = "/tmp/data_" + coordinator_primary_key + ".json"
+                    import_previous_cordinator = import_cordinator(cordinator_path)                    
+                else:
+                    continue
             else:
                 continue
     if not status:
@@ -180,32 +220,36 @@ def download_artifact_from_nexus(nexus_url, path_to_download):
     return (full_path, successfully_download)
 
 
-def run_oozie_jobs(value):
+def run_oozie_jobs(build_data):
     successfully_ran = False
-    for k,v in value.iteritems():
-        if str(k) == "JOB_PROPERTIES_PATH":
-            job_properties_path = str(v["path"])
-            oozie_command_line_command = "oozie job -oozie " + oozie_url + " -config " + str(job_properties_path) + " -run"
-            oozie_output, oozie_status_code = execute_command(oozie_command_line_command)
-            if oozie_status_code == 0:
-                print(oozie_output)
-                print("[INFO] Successfully ran the workflow as well now going to check the execution status on oozie")
-                oozie_command_output = oozie_output.split(':')[1]
-                job_status_command = "oozie job -poll " + oozie_command_output + " -oozie " + oozie_url + " -interval 10 -timeout 60  -verbose"
-                fetch_job_status, fetch_job_status_code = execute_command(job_status_command)
-                refactored_fetch_job_status = " ".join(fetch_job_status.split()) 
-                if str(refactored_fetch_job_status) == "KILLED" or str(refactored_fetch_job_status) == "FAILED":
-                    successfully_ran = False
+    for key , value in build_data.iteritems():
+        for k,v in value.iteritems():
+            if str(k) == "JOB_PROPERTIES":
+                job_properties_path = str(v["parent_workflow_job_properties_path"])
+                oozie_command_line_command = "oozie job -oozie " + oozie_url + " -config " + str(job_properties_path) + " -run"
+                oozie_output, oozie_status_code = execute_command(oozie_command_line_command)
+                if oozie_status_code == 0:
+                    print(oozie_output)
+                    print("[INFO] Successfully ran the workflow as well now going to check the execution status on oozie")
+                    oozie_command_output = oozie_output.split(':')[1]
+                    job_status_command = "oozie job -poll " + oozie_command_output + " -oozie " + oozie_url + " -interval 10 -timeout 60  -verbose"
+                    fetch_job_status, fetch_job_status_code = execute_command(job_status_command)
+                    refactored_fetch_job_status = " ".join(fetch_job_status.split()) 
+                    if str(refactored_fetch_job_status) == "KILLED" or str(refactored_fetch_job_status) == "FAILED":
+                        successfully_ran = False
+                        print("[ERROR] The polling says the jobs has been: %s , So reverting the changes" %(str(refactored_fetch_job_status)))
+                        take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
+                    else:
+                        successfully_ran = True
                 else:
-                    successfully_ran = True
+                    print("[ERROR] Issue while executing this command: %s , So reverting the changes" %(oozie_command_line_command))
+                    successfully_ran = False
+                    take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
             else:
-                print("[ERROR] Issue while executing this command %s" %(oozie_command_line_command))
-                successfully_ran = False
-        else:
-            continue
+                continue
     return successfully_ran
 
-def copy_from_local_to_hdfs(build_data):
+def copy_from_local_to_hdfs_and_import_oozie(build_data):
     output = defaultdict(dict)
     for key , value in build_data.iteritems():
         app_name = os.path.dirname(key)
@@ -220,7 +264,7 @@ def copy_from_local_to_hdfs(build_data):
                 file_name = gavr_url[gavr_url.rfind("/")+1:]
                 hdfs_full_path = str(v["hdfs_path"]) + "/" + file_name
 
-            elif str(k) == "JOB_PROPERTIES_PATH":
+            elif str(k) == "JOB_PROPERTIES":
                 continue
             else:
                 source_path = str(v["source_path"])
@@ -250,10 +294,7 @@ def copy_from_local_to_hdfs(build_data):
         hue_command_output, hue_command_status_code = execute_command(hue_command)
         if hue_command_status_code == 0:
             print(hue_command_output)
-            print("[INFO] Successfully imported the cordinator now going to run the oozie via cli")
-            oozie_command_output = run_oozie_jobs(value)
-            if not oozie_command_output:
-                take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
+            print("[INFO] Successfully imported the cordinator")
         else:
             print("[ERROR] Something went wrong while executing this command: %s" %(hue_command))
             take_backup_from_hdfs_and_vice_versa(build_data, hdfs_back_dir, "revert")
@@ -270,12 +311,16 @@ def main():
         backup_directory_info = get_backup_directory_info(details)
         check_backup_directory(details, hdfs_back_dir)
         take_backup_from_hdfs_and_vice_versa(details, hdfs_back_dir, "release")
-        copy_from_local_to_hdfs(details)
+        copy_from_local_to_hdfs_and_import_oozie(details)
+
+    elif do_what == "run":
+        details = get_details_of_build_process(build_result)
+        run_oozie_jobs(details)
+
     elif do_what == "revert":
         print("[INFO] Going to revert back")
         details = get_details_of_build_process(build_result)
         take_backup_from_hdfs_and_vice_versa(details, hdfs_back_dir, "revert")
-
     else:
         print("[ERROR] This service : %s is not currently supported" %(do_what))
 
